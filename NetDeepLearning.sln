@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33516.290
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetDeepLearning", "NetDeepLearning.csproj", "{40DB2AFE-C574-4167-AA1B-52914F541606}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Éléments de solution", "Éléments de solution", "{7ACF762E-23C0-43C9-B6F1-0F152F949C89}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{40DB2AFE-C574-4167-AA1B-52914F541606}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40DB2AFE-C574-4167-AA1B-52914F541606}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40DB2AFE-C574-4167-AA1B-52914F541606}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40DB2AFE-C574-4167-AA1B-52914F541606}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4EE4C2F7-5DBA-4A2D-B923-6E9AB2CD582B}
+	EndGlobalSection
+EndGlobal
