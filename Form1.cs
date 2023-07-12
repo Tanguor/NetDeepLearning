@@ -44,48 +44,151 @@ namespace NetDeepLearning
 
         private void Start_IA_Click(object sender, EventArgs e)
         {
-        Start:
-            // Initialize necessary HTuple objects.
-            HTuple hv_DLSampleBatch = new HTuple(), hv_DLResultBatch = new HTuple(),
-                   hv_DLModelHandle = new HTuple(), hv_DLResult = new HTuple(),
-                   hv_DetectedClassIDs = new HTuple(), hv_phi_reduced = new HTuple(),
-                   hv_box_row = new HTuple(), hv_box_col = new HTuple(),
-                   preprocessParams = new HTuple(), hv_phi = new HTuple();
+            const int maxAttempts = 3;
+            int attempt = 0;
 
-            const string modelPath = "C:\\Users\\tanguy.lebret\\Documents\\model_LR_opt.hdl";
-            const string preprocessParamsPath = "C:/Users/tanguy.lebret/Documents/model_LR_opt_dl_preprocess_params.hdict";
+            while (attempt < maxAttempts)
+            {
+                // Initialize necessary HTuple objects.
+                    HTuple hv_DLSampleBatch = new HTuple(), hv_DLResultBatch = new HTuple(),
+                       hv_DLModelHandle = new HTuple(), hv_DLResult = new HTuple(),
+                       hv_DetectedClassIDs = new HTuple(), hv_phi_reduced = new HTuple(),
+                       hv_box_row = new HTuple(), hv_box_col = new HTuple(),
+                       preprocessParams = new HTuple(), hv_phi = new HTuple();
 
-            // Load the model
-            HOperatorSet.ReadDlModel(modelPath, out hv_DLModelHandle);
-            // Open the framegrabber.
-            HTuple hv_AcqHandle;
-            HOperatorSet.OpenFramegrabber("GigEVision2", 0, 0, 0, 0, 0, 0, "progressive", -1, "default",
-                -1, "false", "default", "000f315c5fde_AlliedVisionTechnologies_MakoG131B5080", 0, -1, out hv_AcqHandle);
-            // Set the acquisition parameters.
-            HOperatorSet.SetFramegrabberParam(hv_AcqHandle, "AcquisitionMode", "SingleFrame");
+                // Open the framegrabber.
+                    HTuple hv_AcqHandle = null;
+                try
+                {
 
-            // Get the image from the camera.
-            HOperatorSet.GrabImageStart(hv_AcqHandle, -1);
-            HOperatorSet.GrabImageAsync(out HObject ho_Image, hv_AcqHandle, -1);
 
-            // Load the preprocess parameters
-            HOperatorSet.ReadDict(preprocessParamsPath, "json_value_false", "true", out preprocessParams);
+                    const string modelPath = "C:\\Users\\tanguy.lebret\\Documents\\model_LR_opt.hdl";
+                    const string preprocessParamsPath = "C:/Users/tanguy.lebret/Documents/model_LR_opt_dl_preprocess_params.hdict";
 
-            // Apply the preprocess parameters
-            Test_inference_ns.Test_inference_pn.preprocess_dl_model_images(ho_Image, out HObject imagesPreprocessed, preprocessParams);
-            HOperatorSet.ConvertImageType(imagesPreprocessed, out HObject imageConverted, "real");
+                    // Load the model
+                    HOperatorSet.ReadDlModel(modelPath, out hv_DLModelHandle);
 
-            // Generate the DLSampleBatch.
-            hv_DLSampleBatch.Dispose();
-            Test_inference_ns.Test_inference_pn.gen_dl_samples_from_images(imageConverted, out hv_DLSampleBatch);
+                    HOperatorSet.OpenFramegrabber("GigEVision2", 0, 0, 0, 0, 0, 0, "progressive", -1, "default",
+                        -1, "false", "default", "000f315c5fde_AlliedVisionTechnologies_MakoG131B5080", 0, -1, out hv_AcqHandle);
 
-            // Inference
-            hv_DLResultBatch.Dispose();
-            HOperatorSet.ApplyDlModel(hv_DLModelHandle, hv_DLSampleBatch, new HTuple(), out hv_DLResultBatch);
+                    // Set the acquisition parameters.
+                    HOperatorSet.SetFramegrabberParam(hv_AcqHandle, "AcquisitionMode", "SingleFrame");
 
-            hv_DLResult = hv_DLResultBatch.TupleSelect(0);
+                    // Get the image from the camera.
+                    HOperatorSet.GrabImageStart(hv_AcqHandle, -1);
+                    HOperatorSet.GrabImageAsync(out HObject ho_Image, hv_AcqHandle, -1);
 
-            // Data processing
+                    // Load the preprocess parameters
+                    HOperatorSet.ReadDict(preprocessParamsPath, "json_value_false", "true", out preprocessParams);
+
+                    // Apply the preprocess parameters
+                    Test_inference_ns.Test_inference_pn.preprocess_dl_model_images(ho_Image, out HObject imagesPreprocessed, preprocessParams);
+                    HOperatorSet.ConvertImageType(imagesPreprocessed, out HObject imageConverted, "real");
+
+                    // Generate the DLSampleBatch.
+                    hv_DLSampleBatch.Dispose();
+                    Test_inference_ns.Test_inference_pn.gen_dl_samples_from_images(imageConverted, out hv_DLSampleBatch);
+
+                    // Inference
+                    hv_DLResultBatch.Dispose();
+                    HOperatorSet.ApplyDlModel(hv_DLModelHandle, hv_DLSampleBatch, new HTuple(), out hv_DLResultBatch);
+
+                    hv_DLResult = hv_DLResultBatch.TupleSelect(0);
+
+                    // Data processing
+                    ProcessDLResult(hv_DLResult, out hv_DetectedClassIDs, out hv_box_row, out hv_box_col, out hv_phi);
+
+                    HTuple hv_length1, hv_length2;
+                    HOperatorSet.GetDictTuple(hv_DLResult, "bbox_length1", out hv_length1);
+                    HOperatorSet.GetDictTuple(hv_DLResult, "bbox_length2", out hv_length2);
+
+                    // Convert the lengths according to your image size
+
+                    HTuple HomMat2D = new HTuple(new double[] { 0.0141965, 0.218402, -495.553, -0.216524, 0.0145446, 99.0114, 0, 0, 1 });
+                    HTuple X, Y;
+                    HOperatorSet.AffineTransPoint2d(HomMat2D, hv_box_row, hv_box_col, out X, out Y);
+
+                    // Initialize the string
+                    StringBuilder message = new StringBuilder();
+
+
+                    HWindow window = hSmartWindowControl1.HalconWindow;
+
+                    // Effacer le contenu précédent de la fenêtre
+                    window.ClearWindow();
+
+                    // Configurer la taille de la fenêtre d'affichage avec les dimensions de l'image
+                    HOperatorSet.GetImageSize(imagesPreprocessed, out HTuple width, out HTuple height);
+                    hSmartWindowControl1.HalconWindow.SetPart(0, 0, height[0].I - 1, width[0].I - 1);
+
+                    // Afficher l'image sur laquelle les détections ont été effectuées
+                    window.DispObj(imagesPreprocessed);
+
+
+                    // Create the string such as {bboxclass.length; transformedRow[0]-transformedColumn[0];transformedRow[1]-transformedColumn[1];....}
+                    int maxCount = Math.Min(X.Length, 3);
+
+                    message.AppendFormat("{0};", maxCount);
+
+
+                    for (int i = 0; i < maxCount; i++)
+                    {
+                        int z = 28;
+                        double v = 0 * Math.Sin(hv_phi * Math.PI / 180);
+                        double w = 0 * Math.Cos(hv_phi * Math.PI / 180);
+                        message.Append($"{X[i].D.ToString("F2")}u{Y[i].D.ToString("F2")}u{hv_phi[i].D:F2}u{z:F2}u{v:F2}u{w:F2}");
+                        if (i < maxCount - 1)
+                            message.Append(";");
+
+                    }
+                    message.AppendLine();
+                    message.Replace(',', '.');
+                    ho_Image.Dispose();
+                    imagesPreprocessed.Dispose();
+                    imageConverted.Dispose();
+                    // SENDTCP(message)
+                    SendCommandTCP(message.ToString());
+
+                    // If we reached this point, it means the operation was successful, so we break the loop.
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    attempt++;
+
+                    if (attempt >= maxAttempts)
+                    {
+                        // If we've reached the maximum number of attempts, display an error message.
+                        MessageBox.Show("An error occurred: " + ex.Message);
+                    }
+                }
+                finally
+                {
+                    // Close the framegrabber.
+                    HOperatorSet.CloseFramegrabber(hv_AcqHandle);
+                    // Dispose of any resources that were used.
+
+                    hv_DLSampleBatch?.Dispose();
+                    hv_DLResultBatch?.Dispose();
+                    hv_DLModelHandle?.Dispose();
+                    hv_DLResult?.Dispose();
+                    hv_DetectedClassIDs?.Dispose();
+                    hv_phi_reduced?.Dispose();
+                    hv_box_row?.Dispose();
+                    hv_box_col?.Dispose();
+                    preprocessParams?.Dispose();
+                    hv_phi?.Dispose();
+                }
+            }
+        }
+
+        private void ProcessDLResult(HTuple hv_DLResult, out HTuple hv_DetectedClassIDs, out HTuple hv_box_row, out HTuple hv_box_col, out HTuple hv_phi)
+        {
+            hv_DetectedClassIDs = new HTuple();
+            hv_box_row = new HTuple();
+            hv_box_col = new HTuple();
+            hv_phi = new HTuple();
+
             HOperatorSet.GetDictTuple(hv_DLResult, "bbox_class_id", out hv_DetectedClassIDs);
 
             if (hv_DetectedClassIDs.Length != 0)
@@ -98,96 +201,15 @@ namespace NetDeepLearning
                 hv_phi = hv_phi * (180 / Math.PI);
 
                 // Round the values in the hv_phi tuple
-                double[] roundedValues = hv_phi.Select(x => Math.Round(x.D, 2)).ToArray();
-                HTuple hv_phi_reduced = new HTuple(roundedValues);
-
-                HTuple hv_length1, hv_length2;
-                HOperatorSet.GetDictTuple(hv_DLResult, "bbox_length1", out hv_length1);
-                HOperatorSet.GetDictTuple(hv_DLResult, "bbox_length2", out hv_length2);
-
-                // Convert the lengths according to your image size
-
-                HTuple HomMat2D = new HTuple(new double[] { 0.0141965, 0.218402, -495.553, -0.216524, 0.0145446, 99.0114, 0, 0, 1 });
-                HTuple X, Y;
-                HOperatorSet.AffineTransPoint2d(HomMat2D, hv_box_row, hv_box_col, out X, out Y);
-
-                // Initialize the string
-                StringBuilder message = new StringBuilder();
-
-
-                HWindow window = hSmartWindowControl1.HalconWindow;
-
-                // Effacer le contenu précédent de la fenêtre
-                window.ClearWindow();
-
-                // Configurer la taille de la fenêtre d'affichage avec les dimensions de l'image
-                HOperatorSet.GetImageSize(imagesPreprocessed, out HTuple width, out HTuple height);
-                hSmartWindowControl1.HalconWindow.SetPart(0, 0, height[0].I - 1, width[0].I - 1);
-
-                // Afficher l'image sur laquelle les détections ont été effectuées
-                window.DispObj(imagesPreprocessed);
-
-
-                // Create the string such as {bboxclass.length; transformedRow[0]-transformedColumn[0];transformedRow[1]-transformedColumn[1];....}
-                int maxCount = Math.Min(X.Length, 3);
-
-                message.AppendFormat("{0};", maxCount);
-
-
-                for (int i = 0; i < maxCount; i++)
+                for (int i = 0; i < hv_phi.Length; i++)
                 {
-                    int z = 28;
-                    double v = 0 * Math.Sin(hv_phi * Math.PI / 180);
-                    double w = 0 * Math.Cos(hv_phi * Math.PI / 180);
-                    message.Append($"{X[i].D.ToString("F2")}u{Y[i].D.ToString("F2")}u{hv_phi[i].D:F2}u{z:F2}u{v:F2}u{w:F2}");
-                    if (i < maxCount - 1)
-                        message.Append(";");
-
+                    hv_phi[i] = Math.Round(hv_phi[i].D, 2);
                 }
-
-                message.AppendLine();
-                message.Replace(',', '.');
-                ho_Image.Dispose();
-                imagesPreprocessed.Dispose();
-                imageConverted.Dispose();
-                // SENDTCP(message)
-                SendCommandTCP(message.ToString());
-
-                HOperatorSet.CloseFramegrabber(hv_AcqHandle);
-                hv_DLSampleBatch.Dispose();
-                hv_DLResultBatch.Dispose();
-                hv_DLModelHandle.Dispose();
-                hv_DLResult.Dispose();
-                hv_DetectedClassIDs.Dispose();
-                hv_phi_reduced.Dispose();
-                hv_box_row.Dispose();
-                hv_box_col.Dispose();
-                preprocessParams.Dispose();
-                hv_phi.Dispose();
-                StartListening2();
             }
-            else
-            {
-                // Close the framegrabber.
-                HOperatorSet.CloseFramegrabber(hv_AcqHandle);
-
-                // Clean up Halcon objects.
-                hv_DLSampleBatch.Dispose();
-                hv_DLResultBatch.Dispose();
-                hv_DLModelHandle.Dispose();
-                hv_DLResult.Dispose();
-                hv_DetectedClassIDs.Dispose();
-                hv_phi_reduced.Dispose();
-                hv_box_row.Dispose();
-                hv_box_col.Dispose();
-                preprocessParams.Dispose();
-                hv_phi.Dispose();
-                Thread.Sleep(6000);
-                goto Start;
-            }
-
-
         }
+
+
+
 
 
         private void SendCommandTCP(string StrCommand)
