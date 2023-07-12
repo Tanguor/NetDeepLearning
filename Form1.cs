@@ -208,10 +208,6 @@ namespace NetDeepLearning
             }
         }
 
-
-
-
-
         private void SendCommandTCP(string StrCommand)
         {
             try
