@@ -98,11 +98,8 @@ namespace NetDeepLearning
                 hv_phi = hv_phi * (180 / Math.PI);
 
                 // Round the values in the hv_phi tuple
-                for (int i = 0; i < hv_phi.Length; i++)
-                {
-                    double roundedValue = Math.Round(hv_phi[i].D, 2);
-                    hv_phi_reduced[i] = roundedValue;
-                }
+                double[] roundedValues = hv_phi.Select(x => Math.Round(x.D, 2)).ToArray();
+                HTuple hv_phi_reduced = new HTuple(roundedValues);
 
                 HTuple hv_length1, hv_length2;
                 HOperatorSet.GetDictTuple(hv_DLResult, "bbox_length1", out hv_length1);
